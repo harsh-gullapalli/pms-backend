@@ -23,13 +23,62 @@
 
 ## Description
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+PMS backend for Tripon X, built with [NestJS](https://github.com/nestjs/nest) and backed by PostgreSQL and Redis.
 
 ## Project setup
 
 ```bash
 $ npm install
 ```
+
+### Environment configuration
+
+Copy `.env.example` to `.env` and fill in the values. `.env` is git-ignored and must never be committed.
+
+| Variable | Description | Default |
+| --- | --- | --- |
+| `PORT` | HTTP port | `3000` |
+| `DB_HOST` | PostgreSQL host | `localhost` |
+| `DB_PORT` | PostgreSQL port | `5432` |
+| `DB_USER` | PostgreSQL user (required) | - |
+| `DB_PASSWORD` | PostgreSQL password (required) | - |
+| `DB_NAME` | PostgreSQL database (required) | - |
+| `DB_POOL_MAX` | Max pooled connections | `10` |
+| `REDIS_HOST` | Redis host | `localhost` |
+| `REDIS_PORT` | Redis port | `6379` |
+| `REDIS_PASSWORD` | Redis password, leave empty if none | - |
+
+The app fails at startup if a required variable is missing.
+
+### Local services (Docker)
+
+PostgreSQL and Redis run as Docker containers that publish their default ports to `localhost`:
+
+```bash
+docker run -d --name postgres-db -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:17
+docker run -d --name redis -p 6379:6379 redis
+docker exec postgres-db psql -U postgres -c 'CREATE DATABASE "pms-triponx";'
+```
+
+### Health check
+
+`GET /health` checks PostgreSQL and Redis in parallel, with a 2-second timeout per dependency.
+
+- `200 OK` when both are up
+- `503 Service Unavailable` when either is down
+
+```json
+{
+  "status": "ok",
+  "timestamp": "2026-11-04T13:11:48.977Z",
+  "components": {
+    "postgres": { "status": "up", "latencyMs": 83 },
+    "redis": { "status": "up", "latencyMs": 2 }
+  }
+}
+```
+
+Failure reasons are written to the server log, not returned in the response.
 
 ## Compile and run the project
 
