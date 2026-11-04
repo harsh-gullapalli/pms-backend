@@ -35,3 +35,44 @@ model Session {
   @@index([userId])
   @@map("sessions")
 }
+
+enum RoomTypeStatus {
+  ACTIVE
+  INACTIVE
+  MAINTENANCE
+}
+
+/// A hotel/resort managed in the system. Room types belong to a property.
+model Property {
+  id        String     @id @default(uuid()) @db.Uuid
+  name      String
+  /// Short unique identifier, e.g. "GPH".
+  code      String     @unique
+  address   String?
+  city      String
+  country   String
+  isActive  Boolean    @default(true) @map("is_active")
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+  roomTypes RoomType[]
+
+  @@map("properties")
+}
+
+/// A category of room (e.g. Deluxe King) at one property, with the number of
+/// rooms of that type, how many guests each sleeps, and its nightly base rate.
+model RoomType {
+  id         String         @id @default(uuid()) @db.Uuid
+  propertyId String         @map("property_id") @db.Uuid
+  name       String
+  roomCount  Int            @map("room_count")
+  capacity   Int
+  baseRate   Decimal        @map("base_rate") @db.Decimal(10, 2)
+  status     RoomTypeStatus @default(ACTIVE)
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+  property   Property       @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+
+  @@unique([propertyId, name])
+  @@map("room_types")
+}
