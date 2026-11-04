@@ -9,6 +9,8 @@ import postgresConfig from './config/postgres.config.js';
 import redisConfig from './config/redis.config.js';
 import { DatabaseModule } from './database/database.module.js';
 import { HealthModule } from './health/health.module.js';
+import { PropertiesModule } from './properties/properties.module.js';
+import { RoomsModule } from './rooms/rooms.module.js';
 
 @Module({
   imports: [
@@ -19,6 +21,8 @@ import { HealthModule } from './health/health.module.js';
     DatabaseModule,
     AuthModule,
     HealthModule,
+    PropertiesModule,
+    RoomsModule,
   ],
   controllers: [AppController],
   providers: [

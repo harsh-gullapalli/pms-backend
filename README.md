@@ -65,12 +65,12 @@ docker exec postgres-db psql -U postgres -c 'CREATE DATABASE "pms-triponx";'
 
 ### Database (Prisma)
 
-The schema lives in `prisma/schema.prisma` (`users` and `sessions` tables). The generated client is written to `src/generated/` (git-ignored) and is rebuilt automatically by `npm install`.
+The schema lives in `prisma/schema.prisma` (`users`, `sessions`, `properties` and `room_types` tables). The generated client is written to `src/generated/` (git-ignored) and is rebuilt automatically by `npm install`.
 
 ```bash
 npm run prisma:migrate   # create and apply a migration in development
 npm run prisma:deploy    # apply existing migrations (CI / production)
-npm run prisma:seed      # insert the sample users below
+npm run prisma:seed      # insert sample users, properties and room types
 npm run prisma:generate  # regenerate the client after editing the schema
 ```
 
@@ -88,16 +88,19 @@ Users are provisioned directly in the `users` table; there is no registration en
 
 | Endpoint | Auth | Description |
 | --- | --- | --- |
-| `POST /auth/login` | public | Body `{ "email", "password" }`. Returns `{ accessToken, tokenType, user }` |
-| `GET /auth/me` | bearer token | Returns the current user |
-| `POST /auth/logout` | bearer token | Ends the session; returns `204` |
-| `GET /health` | public | See below |
+| `POST /api/v1/auth/login` | public | Body `{ "email", "password" }`. Returns `{ accessToken, tokenType, user }` |
+| `GET /api/v1/auth/me` | bearer token | Returns the current user |
+| `POST /api/v1/auth/logout` | bearer token | Ends the session; returns `204` |
+| `GET /api/v1/health` | public | See below |
+| `/api/v1/properties` | bearer token | CRUD for properties (hotels). `DELETE` returns `409` while a property still has room types |
+| `/api/v1/:propertyId/rooms` | bearer token | CRUD for the room types of one property. Room types are always scoped to a property |
+| `GET /api/v1/docs` | public (non-production) | Swagger UI |
 
 ```bash
-curl -X POST localhost:3000/auth/login -H 'Content-Type: application/json' \
+curl -X POST localhost:3000/api/v1/auth/login -H 'Content-Type: application/json' \
   -d '{"email":"admin@pms.local","password":"Admin@12345"}'
 
-curl localhost:3000/auth/me -H 'Authorization: Bearer <accessToken>'
+curl localhost:3000/api/v1/auth/me -H 'Authorization: Bearer <accessToken>'
 ```
 
 How it works:
@@ -112,7 +115,7 @@ Note: because tokens never expire, a leaked token stays valid until its owner lo
 
 ### Health check
 
-`GET /health` checks PostgreSQL and Redis in parallel, with a 2-second timeout per dependency.
+`GET /api/v1/health` checks PostgreSQL and Redis in parallel, with a 2-second timeout per dependency.
 
 - `200 OK` when both are up
 - `503 Service Unavailable` when either is down
