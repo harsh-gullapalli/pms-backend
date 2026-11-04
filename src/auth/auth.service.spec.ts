@@ -1,4 +1,4 @@
-import { UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../database/prisma.service.js';
 import { AuthService } from './auth.service.js';
@@ -21,6 +21,9 @@ describe('AuthService', () => {
     name: string;
     passwordHash: string;
     isActive: boolean;
+    role: 'ADMIN' | 'STAFF';
+    propertyId: string | null;
+    property: { isActive: boolean } | null;
   };
 
   beforeAll(async () => {
@@ -30,6 +33,9 @@ describe('AuthService', () => {
       name: 'Admin User',
       passwordHash: await hashPassword(PASSWORD),
       isActive: true,
+      role: 'STAFF',
+      propertyId: 'property-1',
+      property: { isActive: true },
     };
   });
 
@@ -54,7 +60,13 @@ describe('AuthService', () => {
     expect(result).toEqual({
       accessToken: 'signed.jwt.token',
       tokenType: 'Bearer',
-      user: { id: 'user-1', email: user.email, name: user.name },
+      user: {
+        id: 'user-1',
+        email: user.email,
+        name: user.name,
+        role: 'STAFF',
+        propertyId: 'property-1',
+      },
     });
     expect(sessions.create).toHaveBeenCalledOnce();
     expect(jwt.signAsync).toHaveBeenCalledWith({
@@ -86,6 +98,54 @@ describe('AuthService', () => {
       service.login(user.email, PASSWORD, {}),
     ).rejects.toBeInstanceOf(UnauthorizedException);
     expect(sessions.create).not.toHaveBeenCalled();
+  });
+
+  it('stores the role and property on the session', async () => {
+    await service.login(user.email, PASSWORD, {});
+
+    expect(sessions.create).toHaveBeenCalledWith(
+      expect.objectContaining({ role: 'STAFF', propertyId: 'property-1' }),
+      {},
+    );
+  });
+
+  it('refuses a STAFF user without a property, but only after the password is right', async () => {
+    findUnique.mockResolvedValue({ ...user, propertyId: null, property: null });
+
+    await expect(
+      service.login(user.email, PASSWORD, {}),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    // A wrong password must still look like any other failed login.
+    await expect(
+      service.login(user.email, 'wrong-password', {}),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(sessions.create).not.toHaveBeenCalled();
+  });
+
+  it('refuses a STAFF user whose property is inactive', async () => {
+    findUnique.mockResolvedValue({
+      ...user,
+      property: { ...user.property!, isActive: false },
+    });
+
+    await expect(
+      service.login(user.email, PASSWORD, {}),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(sessions.create).not.toHaveBeenCalled();
+  });
+
+  it('lets an ADMIN sign in without a property', async () => {
+    findUnique.mockResolvedValue({
+      ...user,
+      role: 'ADMIN',
+      propertyId: null,
+      property: null,
+    });
+
+    const result = await service.login(user.email, PASSWORD, {});
+
+    expect(result.user.role).toBe('ADMIN');
+    expect(result.user.propertyId).toBeNull();
   });
 
   it('revokes the session on logout', async () => {

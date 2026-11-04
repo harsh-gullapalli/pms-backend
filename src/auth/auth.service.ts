@@ -1,14 +1,28 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../database/prisma.service.js';
+import type { UserRole } from '../generated/prisma/enums.js';
 import { hashPassword, verifyPassword } from './password.util.js';
 import { SessionMetadata, SessionService } from './session.service.js';
 import type { JwtPayload } from './types/auth.types.js';
 
+export interface AuthProfile {
+  id: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  /** The one property a STAFF user belongs to; null for ADMIN. */
+  propertyId: string | null;
+}
+
 export interface LoginResult {
   accessToken: string;
   tokenType: 'Bearer';
-  user: { id: string; email: string; name: string };
+  user: AuthProfile;
 }
 
 @Injectable()
@@ -39,6 +53,9 @@ export class AuthService {
         name: true,
         passwordHash: true,
         isActive: true,
+        role: true,
+        propertyId: true,
+        property: { select: { isActive: true } },
       },
     });
 
@@ -51,14 +68,36 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    const sessionId = await this.sessions.create(user, metadata);
+    // Checked only after the credentials are proven, so these specific
+    // messages cannot be used to probe which accounts exist.
+    if (user.role === 'STAFF') {
+      if (!user.property) {
+        throw new ForbiddenException(
+          'Your account is not assigned to a property. Contact an administrator.',
+        );
+      }
+      if (!user.property.isActive) {
+        throw new ForbiddenException(
+          'Your property is inactive. Contact an administrator.',
+        );
+      }
+    }
+
+    const profile: AuthProfile = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      propertyId: user.propertyId,
+    };
+    const sessionId = await this.sessions.create(profile, metadata);
     const payload: JwtPayload = { sub: user.id, sid: sessionId };
 
     return {
       // No expiry: the token is valid until the session is revoked on logout.
       accessToken: await this.jwt.signAsync(payload),
       tokenType: 'Bearer',
-      user: { id: user.id, email: user.email, name: user.name },
+      user: profile,
     };
   }
 

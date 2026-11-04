@@ -1,4 +1,5 @@
 import type { Request } from 'express';
+import type { UserRole } from '../../generated/prisma/enums.js';
 
 /** Claims stored in the access token. The token never expires; it is only
  *  valid while its session exists (see SessionService). */
@@ -14,6 +15,9 @@ export interface AuthUser {
   id: string;
   email: string;
   name: string;
+  role: UserRole;
+  /** The only property a STAFF user may access; null for ADMIN. */
+  propertyId: string | null;
   sessionId: string;
 }
 

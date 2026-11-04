@@ -9,6 +9,8 @@ const USER: AuthUser = {
   id: 'user-1',
   email: 'admin@pms.local',
   name: 'Admin User',
+  role: 'ADMIN',
+  propertyId: null,
   sessionId: 'session-1',
 };
 
