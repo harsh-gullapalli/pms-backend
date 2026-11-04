@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PostgresService } from '../database/postgres.service.js';
+import { PrismaService } from '../database/prisma.service.js';
 import { RedisService } from '../redis/redis.service.js';
 
 export type ComponentStatus = 'up' | 'down';
@@ -25,13 +25,13 @@ export class HealthService {
   private readonly logger = new Logger(HealthService.name);
 
   constructor(
-    private readonly postgres: PostgresService,
+    private readonly prisma: PrismaService,
     private readonly redis: RedisService,
   ) {}
 
   async check(): Promise<HealthReport> {
     const [postgres, redis] = await Promise.all([
-      this.probe('postgres', () => this.postgres.ping()),
+      this.probe('postgres', () => this.prisma.ping()),
       this.probe('redis', () => this.redis.ping()),
     ]);
 

@@ -47,6 +47,9 @@ Copy `.env.example` to `.env` and fill in the values. `.env` is git-ignored and 
 | `REDIS_HOST` | Redis host | `localhost` |
 | `REDIS_PORT` | Redis port | `6379` |
 | `REDIS_PASSWORD` | Redis password, leave empty if none | - |
+| `JWT_SECRET` | Secret used to sign access tokens, at least 32 characters (required) | - |
+
+Generate a secret with `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"`.
 
 The app fails at startup if a required variable is missing.
 
@@ -59,6 +62,53 @@ docker run -d --name postgres-db -p 5432:5432 -e POSTGRES_PASSWORD=postgres post
 docker run -d --name redis -p 6379:6379 redis
 docker exec postgres-db psql -U postgres -c 'CREATE DATABASE "pms-triponx";'
 ```
+
+### Database (Prisma)
+
+The schema lives in `prisma/schema.prisma` (`users` and `sessions` tables). The generated client is written to `src/generated/` (git-ignored) and is rebuilt automatically by `npm install`.
+
+```bash
+npm run prisma:migrate   # create and apply a migration in development
+npm run prisma:deploy    # apply existing migrations (CI / production)
+npm run prisma:seed      # insert the sample users below
+npm run prisma:generate  # regenerate the client after editing the schema
+```
+
+The Prisma CLI builds its connection URL from the same `DB_*` variables as the app, so there is no separate `DATABASE_URL` to maintain.
+
+### Authentication
+
+Users are provisioned directly in the `users` table; there is no registration endpoint. The seed creates these sample accounts (development only, the seed refuses to run with `NODE_ENV=production`):
+
+| Email | Password |
+| --- | --- |
+| `admin@pms.local` | `Admin@12345` |
+| `john.doe@pms.local` | `Password@123` |
+| `jane.smith@pms.local` | `Password@123` |
+
+| Endpoint | Auth | Description |
+| --- | --- | --- |
+| `POST /auth/login` | public | Body `{ "email", "password" }`. Returns `{ accessToken, tokenType, user }` |
+| `GET /auth/me` | bearer token | Returns the current user |
+| `POST /auth/logout` | bearer token | Ends the session; returns `204` |
+| `GET /health` | public | See below |
+
+```bash
+curl -X POST localhost:3000/auth/login -H 'Content-Type: application/json' \
+  -d '{"email":"admin@pms.local","password":"Admin@12345"}'
+
+curl localhost:3000/auth/me -H 'Authorization: Bearer <accessToken>'
+```
+
+How it works:
+
+- **Sessions last until logout.** The JWT has no expiry. Each login creates a row in `sessions`, and the token carries its id (`sid`). Logout deletes the row, which invalidates that token immediately. Logging in on several devices creates independent sessions.
+- **Default-deny.** `AuthGuard` is registered globally, so every route requires a valid token unless it is marked `@Public()`. On each request it checks the token signature (HS256 only) and that the session is still active.
+- **Redis cache.** Active sessions are cached in Redis (5-minute TTL) so most requests skip the database. PostgreSQL stays the source of truth; if Redis is down, requests fall back to the database.
+- **Credentials.** Passwords are hashed with bcrypt. Wrong password, unknown email, and deactivated account all return the same `401`, and unknown emails take the same time as wrong passwords.
+- **Validation.** Request bodies are validated and unknown properties are rejected with `400`.
+
+Note: because tokens never expire, a leaked token stays valid until its owner logs out. Deactivating a user (`is_active = false`) blocks new logins and, once the cache entry expires, existing sessions.
 
 ### Health check
 

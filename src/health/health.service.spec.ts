@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { PostgresService } from '../database/postgres.service.js';
+import { PrismaService } from '../database/prisma.service.js';
 import { RedisService } from '../redis/redis.service.js';
 import { HealthService } from './health.service.js';
 
@@ -15,7 +15,7 @@ describe('HealthService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         HealthService,
-        { provide: PostgresService, useValue: postgres },
+        { provide: PrismaService, useValue: postgres },
         { provide: RedisService, useValue: redis },
       ],
     }).compile();
