@@ -1,5 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { UserRole } from '../../generated/prisma/enums.js';
 
+/** The signed-in user. Used by both `POST /auth/login` and `GET /auth/me`. */
 export class AuthUserDto {
   @ApiProperty({
     format: 'uuid',
@@ -7,11 +9,30 @@ export class AuthUserDto {
   })
   id: string;
 
-  @ApiProperty({ example: 'admin@pms.local' })
+  @ApiProperty({ example: 'john.doe@pms.local' })
   email: string;
 
-  @ApiProperty({ example: 'Admin User' })
+  @ApiProperty({ example: 'John Doe' })
   name: string;
+
+  @ApiProperty({
+    enum: UserRole,
+    enumName: 'UserRole',
+    example: UserRole.STAFF,
+    description:
+      '`ADMIN` manages every property; `STAFF` is limited to their own property.',
+  })
+  role: UserRole;
+
+  @ApiProperty({
+    type: String,
+    format: 'uuid',
+    nullable: true,
+    example: '3f2b8c1e-9d4a-4c55-8a1b-2e6f7a9b0c11',
+    description:
+      'Id of the property a STAFF user belongs to (`properties.id`); null for ADMIN. Load details with `GET /properties/{id}`.',
+  })
+  propertyId: string | null;
 }
 
 export class LoginResponseDto {

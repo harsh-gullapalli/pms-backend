@@ -10,6 +10,7 @@ import {
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
+  ApiForbiddenResponse,
   ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
@@ -18,7 +19,8 @@ import {
 } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { ErrorResponseDto } from '../common/dto/error-response.dto.js';
-import { AuthService, LoginResult } from './auth.service.js';
+import { AuthService } from './auth.service.js';
+import type { AuthProfile, LoginResult } from './auth.service.js';
 import { CurrentUser } from './decorators/current-user.decorator.js';
 import { Public } from './decorators/public.decorator.js';
 import { AuthUserDto, LoginResponseDto } from './dto/login-response.dto.js';
@@ -35,7 +37,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Log in',
     description:
-      'Exchanges email and password for a bearer access token. The token has no expiry and stays valid until you call `POST /auth/logout`.',
+      'Exchanges email and password for a bearer access token. A STAFF user signs in to the one property they are assigned to; ADMIN users are not tied to a property. The token has no expiry and stays valid until you call `POST /auth/logout`.',
   })
   @ApiOkResponse({ type: LoginResponseDto })
   @ApiBadRequestResponse({
@@ -44,6 +46,11 @@ export class AuthController {
   })
   @ApiUnauthorizedResponse({
     description: 'Invalid email or password.',
+    type: ErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description:
+      'Correct credentials, but the STAFF user has no property or their property is inactive.',
     type: ErrorResponseDto,
   })
   @Public()
@@ -72,7 +79,11 @@ export class AuthController {
     return this.authService.logout(user.sessionId);
   }
 
-  @ApiOperation({ summary: 'Get the current user' })
+  @ApiOperation({
+    summary: 'Get the current user',
+    description:
+      'Includes the role and, for STAFF, the id of their property (`propertyId`).',
+  })
   @ApiBearerAuth()
   @ApiOkResponse({ type: AuthUserDto })
   @ApiUnauthorizedResponse({
@@ -80,7 +91,13 @@ export class AuthController {
     type: ErrorResponseDto,
   })
   @Get('me')
-  me(@CurrentUser() user: AuthUser): Omit<AuthUser, 'sessionId'> {
-    return { id: user.id, email: user.email, name: user.name };
+  me(@CurrentUser() user: AuthUser): AuthProfile {
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      propertyId: user.propertyId,
+    };
   }
 }

@@ -14,6 +14,7 @@ import {
   ApiBadRequestResponse,
   ApiBearerAuth,
   ApiConflictResponse,
+  ApiForbiddenResponse,
   ApiCreatedResponse,
   ApiNoContentResponse,
   ApiNotFoundResponse,
@@ -23,6 +24,9 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
+import { Roles } from '../auth/decorators/roles.decorator.js';
+import type { AuthUser } from '../auth/types/auth.types.js';
 import { ErrorResponseDto } from '../common/dto/error-response.dto.js';
 import type { Property } from '../generated/prisma/client.js';
 import { CreatePropertyDto } from './dto/create-property.dto.js';
@@ -40,11 +44,15 @@ import { PropertiesService } from './properties.service.js';
 export class PropertiesController {
   constructor(private readonly propertiesService: PropertiesService) {}
 
-  @ApiOperation({ summary: 'List properties', description: 'Ordered by name.' })
+  @ApiOperation({
+    summary: 'List properties',
+    description:
+      'Ordered by name. ADMIN users get every property; STAFF users get only their own.',
+  })
   @ApiOkResponse({ type: PropertyResponseDto, isArray: true })
   @Get()
-  findAll(): Promise<Property[]> {
-    return this.propertiesService.findAll();
+  findAll(@CurrentUser() user: AuthUser): Promise<Property[]> {
+    return this.propertiesService.findAll(user);
   }
 
   @ApiOperation({ summary: 'Get a property by id' })
@@ -55,15 +63,19 @@ export class PropertiesController {
     type: ErrorResponseDto,
   })
   @ApiNotFoundResponse({
-    description: 'No property with this id.',
+    description:
+      'No property with this id, or (for STAFF) not their own property.',
     type: ErrorResponseDto,
   })
   @Get(':id')
-  findOne(@Param('id', ParseUUIDPipe) id: string): Promise<Property> {
-    return this.propertiesService.findOne(id);
+  findOne(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<Property> {
+    return this.propertiesService.findOne(user, id);
   }
 
-  @ApiOperation({ summary: 'Create a property' })
+  @ApiOperation({ summary: 'Create a property', description: 'ADMIN only.' })
   @ApiCreatedResponse({ type: PropertyResponseDto })
   @ApiBadRequestResponse({
     description: 'Validation failed.',
@@ -73,6 +85,11 @@ export class PropertiesController {
     description: 'A property with this code already exists.',
     type: ErrorResponseDto,
   })
+  @ApiForbiddenResponse({
+    description: 'ADMIN role required.',
+    type: ErrorResponseDto,
+  })
+  @Roles('ADMIN')
   @Post()
   create(@Body() dto: CreatePropertyDto): Promise<Property> {
     return this.propertiesService.create(dto);
@@ -80,7 +97,8 @@ export class PropertiesController {
 
   @ApiOperation({
     summary: 'Update a property',
-    description: 'Partial update: only the fields in the body are changed.',
+    description:
+      'ADMIN only. Partial update: only the fields in the body are changed. Send null for an optional field to clear it.',
   })
   @ApiParam({ name: 'id', format: 'uuid', description: 'Property id' })
   @ApiOkResponse({ type: PropertyResponseDto })
@@ -96,6 +114,11 @@ export class PropertiesController {
     description: 'A property with this code already exists.',
     type: ErrorResponseDto,
   })
+  @ApiForbiddenResponse({
+    description: 'ADMIN role required.',
+    type: ErrorResponseDto,
+  })
+  @Roles('ADMIN')
   @Patch(':id')
   update(
     @Param('id', ParseUUIDPipe) id: string,
@@ -106,7 +129,8 @@ export class PropertiesController {
 
   @ApiOperation({
     summary: 'Delete a property',
-    description: 'Fails with 409 while the property still has room types.',
+    description:
+      'ADMIN only. Fails with 409 while the property still has room types or users.',
   })
   @ApiParam({ name: 'id', format: 'uuid', description: 'Property id' })
   @ApiNoContentResponse({ description: 'Property deleted.' })
@@ -119,9 +143,14 @@ export class PropertiesController {
     type: ErrorResponseDto,
   })
   @ApiConflictResponse({
-    description: 'The property still has room types.',
+    description: 'The property still has room types or users.',
     type: ErrorResponseDto,
   })
+  @ApiForbiddenResponse({
+    description: 'ADMIN role required.',
+    type: ErrorResponseDto,
+  })
+  @Roles('ADMIN')
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
