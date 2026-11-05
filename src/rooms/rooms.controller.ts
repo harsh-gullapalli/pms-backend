@@ -24,11 +24,12 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { ErrorResponseDto } from '../common/dto/error-response.dto.js';
-import type { RoomType } from '../generated/prisma/client.js';
+
 import { CreateRoomTypeDto } from './dto/create-room-type.dto.js';
 import { RoomTypeResponseDto } from './dto/room-type-response.dto.js';
 import { UpdateRoomTypeDto } from './dto/update-room-type.dto.js';
 import { RoomsService } from './rooms.service.js';
+import type { RoomTypeWithCategory } from './rooms.service.js';
 
 @ApiTags('Rooms')
 @ApiParam({ name: 'propertyId', format: 'uuid', description: 'Property id' })
@@ -50,7 +51,7 @@ export class RoomsController {
   @Get()
   findAll(
     @Param('propertyId', ParseUUIDPipe) propertyId: string,
-  ): Promise<RoomType[]> {
+  ): Promise<RoomTypeWithCategory[]> {
     return this.roomsService.findAll(propertyId);
   }
 
@@ -70,7 +71,7 @@ export class RoomsController {
   findOne(
     @Param('propertyId', ParseUUIDPipe) propertyId: string,
     @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<RoomType> {
+  ): Promise<RoomTypeWithCategory> {
     return this.roomsService.findOne(propertyId, id);
   }
 
@@ -88,7 +89,7 @@ export class RoomsController {
   create(
     @Param('propertyId', ParseUUIDPipe) propertyId: string,
     @Body() dto: CreateRoomTypeDto,
-  ): Promise<RoomType> {
+  ): Promise<RoomTypeWithCategory> {
     return this.roomsService.create(propertyId, dto);
   }
 
@@ -116,7 +117,7 @@ export class RoomsController {
     @Param('propertyId', ParseUUIDPipe) propertyId: string,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateRoomTypeDto,
-  ): Promise<RoomType> {
+  ): Promise<RoomTypeWithCategory> {
     return this.roomsService.update(propertyId, id, dto);
   }
 

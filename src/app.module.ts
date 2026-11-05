@@ -10,6 +10,8 @@ import redisConfig from './config/redis.config.js';
 import { DatabaseModule } from './database/database.module.js';
 import { HealthModule } from './health/health.module.js';
 import { PropertiesModule } from './properties/properties.module.js';
+import { AmenitiesModule } from './amenities/amenities.module.js';
+import { RoomCategoriesModule } from './room-categories/room-categories.module.js';
 import { RoomsModule } from './rooms/rooms.module.js';
 
 @Module({
@@ -23,6 +25,8 @@ import { RoomsModule } from './rooms/rooms.module.js';
     HealthModule,
     PropertiesModule,
     RoomsModule,
+    RoomCategoriesModule,
+    AmenitiesModule,
   ],
   controllers: [AppController],
   providers: [
