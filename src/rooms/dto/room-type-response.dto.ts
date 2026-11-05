@@ -1,6 +1,17 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { RoomTypeStatus } from '../../generated/prisma/enums.js';
 
+export class RoomTypeCategoryDto {
+  @ApiProperty({ format: 'uuid' })
+  id: string;
+
+  @ApiProperty({ example: 'Accessible King Suite' })
+  name: string;
+
+  @ApiProperty({ example: '1 King Bed (180x200 cm)' })
+  bedSetup: string;
+}
+
 export class RoomTypeResponseDto {
   @ApiProperty({
     format: 'uuid',
@@ -42,4 +53,19 @@ export class RoomTypeResponseDto {
 
   @ApiProperty({ format: 'date-time' })
   updatedAt: Date;
+
+  @ApiProperty({
+    type: String,
+    format: 'uuid',
+    nullable: true,
+    description: 'Bed classification (room category) id, if set.',
+  })
+  categoryId: string | null;
+
+  @ApiProperty({
+    type: () => RoomTypeCategoryDto,
+    nullable: true,
+    description: 'The room category this room type is classified under.',
+  })
+  category: RoomTypeCategoryDto | null;
 }

@@ -3,6 +3,7 @@ import { Transform } from 'class-transformer';
 import {
   IsEnum,
   IsInt,
+  IsUUID,
   IsNumber,
   IsOptional,
   IsString,
@@ -66,4 +67,14 @@ export class UpdateRoomTypeDto {
   @IsOptional()
   @IsEnum(RoomTypeStatus)
   status?: RoomTypeStatus;
+
+  @ApiPropertyOptional({
+    format: 'uuid',
+    nullable: true,
+    description:
+      'Bed classification: id of a room category at the same property. Send null to clear it.',
+  })
+  @IsOptional()
+  @IsUUID()
+  categoryId?: string | null;
 }
